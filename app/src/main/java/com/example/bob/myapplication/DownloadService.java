@@ -10,6 +10,8 @@ import android.os.Message;
 import android.os.Messenger;
 import android.os.RemoteException;
 import android.support.annotation.Nullable;
+import android.support.v4.app.NotificationCompat;
+import android.support.v4.app.NotificationManagerCompat;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -29,10 +31,12 @@ public class DownloadService extends Service {
 
     private static final String TAG = "DownloadService";
     private static Messenger clientMessenger;
-    private String FILE_URL = "http://192.168.30.135:8080/ota_update.zip";
+    private String FILE_URL = "http://10.0.2.2:8080/ota_update.zip";
     private HttpHandler<File> httpHandler;
     private DownloadHandler downloadHandler = new DownloadHandler();
     private Messenger messenger = new Messenger(downloadHandler);
+    NotificationManagerCompat mNotificationManager;
+    NotificationCompat.Builder mBuilder;
 
     @Nullable
     @Override
@@ -43,6 +47,13 @@ public class DownloadService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         return super.onStartCommand(intent, flags, startId);
+    }
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        mNotificationManager = NotificationManagerCompat.from(getApplicationContext());
+        mBuilder = new NotificationCompat.Builder(getApplicationContext());
     }
 
     /**
@@ -61,6 +72,10 @@ public class DownloadService extends Service {
                     @Override
                     public void onStart() {
                         Toast.makeText(getApplicationContext(), "conn start", Toast.LENGTH_SHORT).show();
+                        mBuilder.setSmallIcon(R.mipmap.ic_launcher)
+                                .setContentTitle("start download ota.zip")
+                                .setProgress(100, 0, false);
+                        updateNotification();
                     }
 
                     @Override
@@ -79,11 +94,22 @@ public class DownloadService extends Service {
                                 e.printStackTrace();
                             }
                         }
+
+                        // update the notification
+                        mBuilder.setSmallIcon(R.mipmap.ic_launcher)
+                                .setContentTitle("Downloading ..........")
+                                .setProgress((int) total, (int) current, false);
+                        updateNotification();
                     }
 
                     @Override
                     public void onSuccess(ResponseInfo<File> responseInfo) {
-                        Toast.makeText(getApplicationContext(), "downloaded:" + responseInfo.result.getPath(), Toast.LENGTH_SHORT).show();
+                        // update the notification
+                        mBuilder.setSmallIcon(R.mipmap.ic_launcher)
+                                .setContentTitle("Success ..........");
+                        updateNotification();
+                        Toast.makeText(getApplicationContext(), "downloaded:"
+                                + responseInfo.result.getPath(), Toast.LENGTH_SHORT).show();
                     }
 
 
@@ -97,8 +123,16 @@ public class DownloadService extends Service {
                         } catch (RemoteException e) {
                             e.printStackTrace();
                         }
+                        // update the notification
+                        mBuilder.setSmallIcon(R.mipmap.ic_launcher)
+                                .setContentTitle("Error ..........");
+                        updateNotification();
                     }
                 });
+    }
+
+    private void updateNotification() {
+        mNotificationManager.notify(R.id.progressBar, mBuilder.build());
     }
 
     /**
@@ -107,6 +141,9 @@ public class DownloadService extends Service {
     private void pauseDownload() {
         if (httpHandler != null) {
             httpHandler.cancel();
+            mBuilder.setSmallIcon(R.mipmap.ic_launcher)
+                    .setContentTitle("Pause ..........");
+            updateNotification();
         }
     }
 
